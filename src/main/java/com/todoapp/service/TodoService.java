@@ -71,7 +71,17 @@ public class TodoService {
             todo.setDescription(request.getDescription());
         }
         if (request.getCompleted() != null) {
+            boolean wasCompleted = todo.isCompleted();
             todo.setCompleted(request.getCompleted());
+
+            // Set completedAt timestamp when marking as completed
+            if (request.getCompleted() && !wasCompleted) {
+                todo.setCompletedAt(java.time.LocalDateTime.now());
+            }
+            // Clear completedAt timestamp when marking as incomplete
+            else if (!request.getCompleted() && wasCompleted) {
+                todo.setCompletedAt(null);
+            }
         }
         if (request.getPriority() != null) {
             todo.setPriority(request.getPriority());
@@ -88,8 +98,17 @@ public class TodoService {
     public TodoDto.Response toggleTodo(Long id, User user) {
         Todo todo = todoRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Todo not found"));
-        
-        todo.setCompleted(!todo.isCompleted());
+
+        boolean newCompletedStatus = !todo.isCompleted();
+        todo.setCompleted(newCompletedStatus);
+
+        // Set completedAt timestamp when marking as completed, clear when marking as incomplete
+        if (newCompletedStatus) {
+            todo.setCompletedAt(java.time.LocalDateTime.now());
+        } else {
+            todo.setCompletedAt(null);
+        }
+
         todo = todoRepository.save(todo);
         return mapToResponse(todo);
     }
@@ -122,6 +141,7 @@ public class TodoService {
                 .dueDate(todo.getDueDate())
                 .createdAt(todo.getCreatedAt())
                 .updatedAt(todo.getUpdatedAt())
+                .completedAt(todo.getCompletedAt())
                 .build();
     }
 }
