@@ -15,7 +15,7 @@ variables:
   - name: azureServiceConnection
     value: 'azure-connection'
   - name: location
-    value: 'eastus'
+    value: 'westeurope'
   - name: environmentName
     value: 'dev'
 

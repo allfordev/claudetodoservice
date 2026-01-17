@@ -5,7 +5,7 @@ targetScope = 'subscription'
 param environmentName string = 'dev'
 
 @description('Location for all resources')
-param location string = 'eastus'
+param location string = 'westeurope'
 
 @description('PostgreSQL administrator login')
 param postgresAdminLogin string = 'pgadmin'
