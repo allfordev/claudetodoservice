@@ -10,8 +10,12 @@ param containerAppsEnvironmentId string
 @description('Container Registry Login Server')
 param containerRegistryLoginServer string
 
-@description('Managed Identity ID')
-param managedIdentityId string
+@description('Container Registry Username')
+param containerRegistryUsername string
+
+@secure()
+@description('Container Registry Password')
+param containerRegistryPassword string
 
 @description('Container image name with tag')
 param imageName string
@@ -28,15 +32,17 @@ param envVars array = []
 @description('Secrets')
 param secrets array = []
 
+// Combine ACR password with other secrets
+var allSecrets = concat(secrets, [
+  {
+    name: 'acr-password'
+    value: containerRegistryPassword
+  }
+])
+
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: name
   location: location
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${managedIdentityId}': {}
-    }
-  }
   properties: {
     managedEnvironmentId: containerAppsEnvironmentId
     configuration: {
@@ -50,10 +56,11 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: [
         {
           server: containerRegistryLoginServer
-          identity: managedIdentityId
+          username: containerRegistryUsername
+          passwordSecretRef: 'acr-password'
         }
       ]
-      secrets: secrets
+      secrets: allSecrets
     }
     template: {
       containers: [

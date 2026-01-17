@@ -51,7 +51,6 @@ module acr 'modules/containerRegistry.bicep' = {
   params: {
     name: containerRegistryName
     location: location
-    managedIdentityPrincipalId: managedIdentity.outputs.principalId
   }
 }
 
@@ -87,7 +86,8 @@ module backendApp 'modules/containerApp.bicep' = {
     location: location
     containerAppsEnvironmentId: containerAppsEnv.outputs.id
     containerRegistryLoginServer: acr.outputs.loginServer
-    managedIdentityId: managedIdentity.outputs.id
+    containerRegistryUsername: acr.outputs.adminUsername
+    containerRegistryPassword: acr.outputs.adminPassword
     imageName: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder - will be updated by pipeline
     targetPort: 8080
     isExternal: false // Internal only - not exposed to internet
@@ -135,7 +135,8 @@ module frontendApp 'modules/containerApp.bicep' = {
     location: location
     containerAppsEnvironmentId: containerAppsEnv.outputs.id
     containerRegistryLoginServer: acr.outputs.loginServer
-    managedIdentityId: managedIdentity.outputs.id
+    containerRegistryUsername: acr.outputs.adminUsername
+    containerRegistryPassword: acr.outputs.adminPassword
     imageName: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder - will be updated by pipeline
     targetPort: 80
     isExternal: true // External - exposed to internet
