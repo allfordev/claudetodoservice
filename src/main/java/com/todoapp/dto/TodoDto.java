@@ -57,6 +57,7 @@ public class TodoDto {
         private LocalDateTime dueDate;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private LocalDateTime completedAt;
     }
     
     @Data
