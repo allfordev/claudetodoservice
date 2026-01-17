@@ -1,0 +1,140 @@
+# Azure DevOps Pipeline for Taskbook Backend
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - README.md
+      - docs/**
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: taskbook-secrets
+  - name: azureServiceConnection
+    value: 'azure-connection'
+  - name: imageName
+    value: 'taskbook-backend'
+  - name: containerAppName
+    value: 'ca-taskbook-backend'
+  - name: resourceGroup
+    value: 'rg-taskbook-dev'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: BuildAndTest
+        displayName: 'Build and Test'
+        steps:
+          - task: JavaToolInstaller@0
+            displayName: 'Install Java 17'
+            inputs:
+              versionSpec: '17'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+
+          - task: Maven@4
+            displayName: 'Maven Build & Test'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              goals: 'clean verify'
+              options: '-B'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.17'
+
+  - stage: BuildImage
+    displayName: 'Build Docker Image'
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: BuildPushImage
+        displayName: 'Build and Push Docker Image'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Get ACR Name'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                ACR_NAME=$(az acr list --resource-group $(resourceGroup) --query "[0].name" -o tsv)
+                echo "##vso[task.setvariable variable=acrLoginServer]${ACR_NAME}.azurecr.io"
+                echo "##vso[task.setvariable variable=acrNameResolved]${ACR_NAME}"
+                echo "ACR Name: ${ACR_NAME}"
+
+          - task: AzureCLI@2
+            displayName: 'Build and Push to ACR'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az acr build \
+                  --registry $(acrNameResolved) \
+                  --image $(imageName):$(Build.BuildId) \
+                  --image $(imageName):latest \
+                  --file Dockerfile \
+                  .
+
+  - stage: Deploy
+    displayName: 'Deploy to Container Apps'
+    dependsOn: BuildImage
+    condition: succeeded()
+    jobs:
+      - deployment: DeployToContainerApps
+        displayName: 'Deploy to Container Apps'
+        environment: 'dev'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  displayName: 'Get ACR Name'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      ACR_NAME=$(az acr list --resource-group $(resourceGroup) --query "[0].name" -o tsv)
+                      echo "##vso[task.setvariable variable=acrLoginServer]${ACR_NAME}.azurecr.io"
+
+                - task: AzureCLI@2
+                  displayName: 'Deploy to Container App'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az containerapp update \
+                        --name $(containerAppName) \
+                        --resource-group $(resourceGroup) \
+                        --image $(acrLoginServer)/$(imageName):$(Build.BuildId)
+
+                - task: AzureCLI@2
+                  displayName: 'Verify Deployment'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      echo "Waiting for deployment to stabilize..."
+                      sleep 30
+
+                      # Get the internal FQDN
+                      FQDN=$(az containerapp show \
+                        --name $(containerAppName) \
+                        --resource-group $(resourceGroup) \
+                        --query "properties.configuration.ingress.fqdn" -o tsv)
+
+                      echo "Backend Internal FQDN: ${FQDN}"
+                      echo "Backend is internal-only and not directly accessible from internet"
