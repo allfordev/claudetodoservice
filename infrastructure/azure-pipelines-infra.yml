@@ -1,0 +1,97 @@
+# Azure DevOps Pipeline for Taskbook Infrastructure
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infrastructure/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: taskbook-secrets
+  - name: azureServiceConnection
+    value: 'azure-connection'
+  - name: location
+    value: 'eastus'
+  - name: environmentName
+    value: 'dev'
+
+stages:
+  - stage: ValidateInfrastructure
+    displayName: 'Validate Bicep'
+    jobs:
+      - job: Validate
+        displayName: 'Validate Bicep Templates'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Build Bicep (Validate Syntax)'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az bicep build --file infrastructure/main.bicep
+
+          - task: AzureCLI@2
+            displayName: 'What-If Deployment'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az deployment sub what-if \
+                  --location $(location) \
+                  --template-file infrastructure/main.bicep \
+                  --parameters environmentName=$(environmentName) \
+                  --parameters postgresAdminPassword='$(POSTGRES_ADMIN_PASSWORD)' \
+                  --parameters jwtSecret='$(JWT_SECRET)'
+
+  - stage: DeployInfrastructure
+    displayName: 'Deploy Infrastructure'
+    dependsOn: ValidateInfrastructure
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployBicep
+        displayName: 'Deploy Bicep Templates'
+        environment: 'dev'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: AzureCLI@2
+                  displayName: 'Deploy Bicep'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az deployment sub create \
+                        --location $(location) \
+                        --template-file infrastructure/main.bicep \
+                        --parameters environmentName=$(environmentName) \
+                        --parameters postgresAdminPassword='$(POSTGRES_ADMIN_PASSWORD)' \
+                        --parameters jwtSecret='$(JWT_SECRET)' \
+                        --name 'taskbook-$(Build.BuildId)'
+
+                - task: AzureCLI@2
+                  displayName: 'Output Deployment Results'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      echo "=== Deployment Outputs ==="
+                      az deployment sub show \
+                        --name 'taskbook-$(Build.BuildId)' \
+                        --query properties.outputs
+
+                      echo ""
+                      echo "=== Resource Group Contents ==="
+                      az resource list \
+                        --resource-group rg-taskbook-$(environmentName) \
+                        --output table
