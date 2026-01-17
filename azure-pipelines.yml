@@ -34,13 +34,6 @@ stages:
       - job: BuildAndTest
         displayName: 'Build and Test'
         steps:
-          - task: JavaToolInstaller@0
-            displayName: 'Install Java 17'
-            inputs:
-              versionSpec: '17'
-              jdkArchitectureOption: 'x64'
-              jdkSourceOption: 'PreInstalled'
-
           - task: Maven@4
             displayName: 'Maven Build & Test'
             inputs:
@@ -49,8 +42,8 @@ stages:
               options: '-B'
               publishJUnitResults: true
               testResultsFiles: '**/surefire-reports/TEST-*.xml'
-              javaHomeOption: 'JDKVersion'
-              jdkVersionOption: '1.17'
+              javaHomeOption: 'Path'
+              jdkDirectory: '$(JAVA_HOME)'
 
   - stage: BuildImage
     displayName: 'Build Docker Image'

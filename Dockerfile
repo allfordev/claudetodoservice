@@ -1,5 +1,5 @@
 # Multi-stage build for Java Spring Boot
-FROM maven:3.9-eclipse-temurin-17-alpine AS build
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 
 # Copy pom.xml first for dependency caching
@@ -11,7 +11,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -B
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Create non-root user
