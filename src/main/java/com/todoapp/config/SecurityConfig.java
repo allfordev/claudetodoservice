@@ -52,11 +52,18 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+
+        // Handle wildcard origin patterns for credentials support
+        if ("*".equals(allowedOrigins.trim())) {
+            configuration.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        }
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

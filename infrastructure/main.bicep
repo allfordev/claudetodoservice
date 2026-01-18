@@ -77,7 +77,7 @@ module containerAppsEnv 'modules/containerAppsEnv.bicep' = {
   }
 }
 
-// Backend Container App (internal only - not exposed to internet)
+// Backend Container App (external - exposed to internet)
 module backendApp 'modules/containerApp.bicep' = {
   scope: rg
   name: 'backendApp'
@@ -90,7 +90,7 @@ module backendApp 'modules/containerApp.bicep' = {
     containerRegistryPassword: acr.outputs.adminPassword
     imageName: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder - will be updated by pipeline
     targetPort: 8080
-    isExternal: false // Internal only - not exposed to internet
+    isExternal: true // External - exposed to internet
     envVars: [
       {
         name: 'SPRING_DATASOURCE_URL'
@@ -140,16 +140,7 @@ module frontendApp 'modules/containerApp.bicep' = {
     imageName: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder - will be updated by pipeline
     targetPort: 80
     isExternal: true // External - exposed to internet
-    envVars: [
-      {
-        name: 'BACKEND_URL'
-        value: 'http://${backendApp.outputs.fqdn}'
-      }
-      {
-        name: 'BACKEND_HOST'
-        value: backendApp.outputs.fqdn
-      }
-    ]
+    envVars: []
     secrets: []
   }
   dependsOn: [backendApp]
