@@ -140,7 +140,16 @@ module frontendApp 'modules/containerApp.bicep' = {
     imageName: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder - will be updated by pipeline
     targetPort: 80
     isExternal: true // External - exposed to internet
-    envVars: []
+    envVars: [
+      {
+        name: 'BACKEND_URL'
+        value: 'http://${backendApp.outputs.fqdn}'
+      }
+      {
+        name: 'BACKEND_HOST'
+        value: backendApp.outputs.fqdn
+      }
+    ]
     secrets: []
   }
   dependsOn: [backendApp]
