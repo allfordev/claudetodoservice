@@ -48,8 +48,7 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(
-            RuntimeException ex
-    ) {
+            RuntimeException ex) {
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.BAD_REQUEST.value());

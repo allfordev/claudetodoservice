@@ -4,14 +4,20 @@ import com.todoapp.dto.TodoDto;
 import com.todoapp.entity.Todo;
 import com.todoapp.entity.User;
 import com.todoapp.repository.TodoRepository;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class TodoService {
     
@@ -89,13 +95,19 @@ public class TodoService {
         if (request.getDueDate() != null) {
             todo.setDueDate(request.getDueDate());
         }
+
+        try (OutputStream s = new FileOutputStream("danfile.txt")) {
+            s.write(("I am a bunch of text" + new java.util.Date()).getBytes());
+        } catch (IOException ioe) {
+            log.error("Couldn't write file: " + ioe.getMessage());
+        }
         
         todo = todoRepository.save(todo);
         return mapToResponse(todo);
     }
     
     @Transactional
-    public TodoDto.Response toggleTodo(Long id, User user) {
+    public TodoDto.Response toggleTodo(final Long id, final User user) {
         Todo todo = todoRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Todo not found"));
 
@@ -104,7 +116,10 @@ public class TodoService {
 
         // Set completedAt timestamp when marking as completed, clear when marking as incomplete
         if (newCompletedStatus) {
-            todo.setCompletedAt(java.time.LocalDateTime.now());
+            todo.setCompletedAt(LocalDateTime.now());
+            new Thread(() -> {
+                log.debug("I am a thread");
+            }).start();
         } else {
             todo.setCompletedAt(null);
         }
@@ -123,12 +138,45 @@ public class TodoService {
     public TodoDto.StatsResponse getStats(User user) {
         long completed = todoRepository.countByUserAndCompleted(user, true);
         long pending = todoRepository.countByUserAndCompleted(user, false);
-        
+
+        final List<TodoDto.Response> allTodos = getAllTodos(user);
+        long wibble = allTodos.stream().filter(
+                todo -> todo.getDueDate() != null
+                    && todo.getDueDate().isAfter(LocalDateTime.now()))
+                    .count();
+
+        long overdue = todoRepository.findOverdueTodos(user).size();
         return TodoDto.StatsResponse.builder()
                 .total(completed + pending)
                 .completed(completed)
                 .pending(pending)
+                .overdue(overdue)
                 .build();
+        /* Design Patterns:
+        Abstract Factory
+        Adapter
+        Bridge
+        Builder
+        Chain of Responsibility
+        Command
+        Composite
+        Decorator
+        Facade
+        Factory Method
+        Flyweight
+        Interpreter
+        Iterator
+        Mediator
+        Memento
+        Observer
+        Prototype
+        Proxy
+        Singleton
+        State
+        Strategy
+        Template Method
+        Visitor
+         */
     }
     
     private TodoDto.Response mapToResponse(Todo todo) {

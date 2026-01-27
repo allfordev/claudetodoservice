@@ -12,6 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface TodoRepository extends JpaRepository<Todo, Long> {
+
     List<Todo> findByUserOrderByCreatedAtDesc(User user);
     
     List<Todo> findByUserAndCompletedOrderByCreatedAtDesc(User user, boolean completed);
@@ -24,4 +25,7 @@ public interface TodoRepository extends JpaRepository<Todo, Long> {
     List<Todo> findByUserOrderByPriority(@Param("user") User user);
     
     long countByUserAndCompleted(User user, boolean completed);
+
+    @Query("SELECT t FROM Todo t WHERE t.user = :user AND t.dueDate < CURRENT_TIMESTAMP AND t.completed = false")
+    List<Todo> findOverdueTodos(@Param("user") User user);
 }

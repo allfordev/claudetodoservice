@@ -68,5 +68,6 @@ public class TodoDto {
         private long total;
         private long completed;
         private long pending;
+        private long overdue;
     }
 }

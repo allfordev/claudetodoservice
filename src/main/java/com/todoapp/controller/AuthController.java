@@ -18,22 +18,19 @@ public class AuthController {
     
     @PostMapping("/signup")
     public ResponseEntity<AuthDto.AuthResponse> register(
-            @Valid @RequestBody AuthDto.SignUpRequest request
-    ) {
+            @Valid @RequestBody AuthDto.SignUpRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
     
     @PostMapping("/login")
     public ResponseEntity<AuthDto.AuthResponse> login(
-            @Valid @RequestBody AuthDto.LoginRequest request
-    ) {
+            @Valid @RequestBody AuthDto.LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
     
     @GetMapping("/me")
     public ResponseEntity<AuthDto.UserDto> getCurrentUser(
-            @AuthenticationPrincipal User user
-    ) {
+            @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(authService.getCurrentUser(user));
     }
 }
